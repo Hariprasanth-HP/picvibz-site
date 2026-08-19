@@ -92,6 +92,8 @@ export interface ApiPhotoFile {
   originalUrl: string;
   previewUrl: string;
   thumbnailUrl: string;
+  mediumUrl?: string;
+  status?: string;
 }
 
 export interface ApiPhotoUser {
@@ -108,6 +110,48 @@ export interface ApiPhoto {
   file: ApiPhotoFile;
   user: ApiPhotoUser;
   createdAt: string;
+}
+
+export type ApiMediaStatus =
+  | 'UPLOADING'
+  | 'PROCESSING'
+  | 'READY'
+  | 'FAILED';
+
+export interface ApiMedia {
+  id: string;
+  eventId: string | null;
+  status: ApiMediaStatus;
+  mimeType: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  previewUrl: string | null;
+  mediumUrl: string | null;
+  originalUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InitUploadResponse {
+  uploadId: string;
+  fileId: string;
+  uploadUrl: string;
+  storageKey: string;
+  status: ApiMediaStatus;
+}
+
+export interface CompleteUploadResponse {
+  id: string;
+  status: ApiMediaStatus;
+}
+
+export interface InitUploadPayload {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  eventId?: string;
 }
 
 export const api = {
@@ -178,13 +222,25 @@ export const api = {
     });
   },
 
-  uploadPhoto(eventId: string, file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-    return request<ApiPhoto>(`/events/${eventId}/photos`, {
+  initUpload(data: InitUploadPayload) {
+    return request<InitUploadResponse>('/uploads/init', {
       method: 'POST',
-      body: formData,
+      body: JSON.stringify(data),
     });
+  },
+
+  completeUpload(uploadId: string) {
+    return request<CompleteUploadResponse>(`/uploads/${uploadId}/complete`, {
+      method: 'POST',
+    });
+  },
+
+  getUploads() {
+    return request<ApiMedia[]>('/uploads');
+  },
+
+  getUpload(id: string) {
+    return request<ApiMedia>(`/uploads/${id}`);
   },
 
   getPhotos(eventId: string) {

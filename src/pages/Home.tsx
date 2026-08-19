@@ -2,14 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PlusCircle, Upload, QrCode, ChevronRight, Sun, Bell, Merge, Check, MapPin, Cpu, Zap, Layers } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
+import { useUpload } from '@/context/UploadContext';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 export function Home() {
-  const { events, addPhoto, loadEvents } = useAppContext();
-  const { user } = useAuth();
+  const { events, loadEvents } = useAppContext();
+  const { uploadFiles } = useUpload();
   const navigate = useNavigate();
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -21,18 +21,9 @@ export function Home() {
   }, []);
 
   const handleQuickUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && events.length > 0) {
+    if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const isVideo = file.type.startsWith('video/');
-      const isGif = file.type === 'image/gif';
-
-      addPhoto(events[0].id, {
-        url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=400',
-        uploader: user?.displayName || 'You',
-        nameCluster: 'Quick Upload',
-        type: isVideo ? 'video' : (isGif ? 'gif' : 'image')
-      });
-      alert(`Media uploaded to ${events[0].name}!`);
+      uploadFiles([file]);
     }
   };
 

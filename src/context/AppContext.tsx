@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
-import type { ApiEvent } from '@/lib/api';
+import type { ApiEvent, ApiMedia } from '@/lib/api';
 import type { ReactNode } from 'react';
 
 export type EventType = 'Wedding' | 'House Warming' | 'Engagement' | 'Birthday' | 'Corporate' | 'Graduation' | 'Baby Shower' | 'Anniversary' | 'Reunion' | 'Party' | 'Other';
@@ -19,6 +19,7 @@ export interface Photo {
   uploader: string;
   uploaderId: string;
   uploadedAt: string;
+  mediaId?: string;
   nameCluster?: string;
   detectedPeople?: DetectedPerson[];
   visualTags?: string[];
@@ -49,9 +50,13 @@ export interface AppEvent {
 
 interface AppContextType {
   events: AppEvent[];
+  media: ApiMedia[];
   localFolders: LocalFolder[];
   addEvent: (event: Omit<AppEvent, 'id' | 'photos'> & { id?: string; photos?: Photo[] }) => string;
   loadEvents: (apiEvents: ApiEvent[]) => void;
+  loadMedia: (media: ApiMedia[]) => void;
+  addMedia: (media: ApiMedia) => void;
+  removeMedia: (id: string) => void;
   eventPasses: number;
   setEventPasses: (passes: number) => void;
   autoUpload: boolean;
@@ -72,6 +77,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [media, setMedia] = useState<ApiMedia[]>([]);
   const [localFolders, setLocalFolders] = useState<LocalFolder[]>([]);
   const [eventPasses, setEventPasses] = useState<number>(0);
   const [autoUpload, setAutoUpload] = useState(false);
@@ -108,6 +114,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       coverImage: e.coverImage,
       photos: [],
     })));
+  };
+
+  const loadMedia = (list: ApiMedia[]) => {
+    setMedia(list);
+  };
+
+  const addMedia = (item: ApiMedia) => {
+    setMedia(prev => [item, ...prev.filter(m => m.id !== item.id)]);
+  };
+
+  const removeMedia = (id: string) => {
+    setMedia(prev => prev.filter(m => m.id !== id));
   };
 
   const mergeEvents = (event1Id: string, event2Id: string, newName: string) => {
@@ -223,9 +241,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       events,
+      media,
       localFolders,
       addEvent,
       loadEvents,
+      loadMedia,
+      addMedia,
+      removeMedia,
       eventPasses,
       setEventPasses,
       autoUpload,

@@ -9,7 +9,8 @@ import { useAppContext } from '@/context/AppContext';
 import type { Photo, DetectedPerson, AppEvent } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useUpload } from '@/context/UploadContext';
-import { api } from '@/lib/api';
+import { api, type ApiPhoto } from '@/lib/api';
+import { downloadMedia, downloadUrl } from '@/lib/download';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { motion, AnimatePresence } from 'motion/react';
@@ -76,25 +77,42 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     }
   };
 
+  const mapApiPhoto = (p: ApiPhoto): Photo => ({
+    id: p.id,
+    url: p.file.previewUrl || p.file.originalUrl || '',
+    eventId: p.eventId,
+    uploader: p.user.displayName,
+    uploaderId: p.uploadedBy,
+    uploadedAt: p.createdAt,
+    mediaId: p.fileId,
+    type: (p.file.mimetype.startsWith('video/') ? 'video' : p.file.mimetype === 'image/gif' ? 'gif' : 'image') as 'image' | 'video' | 'gif',
+    fileName: p.file.originalName,
+    fileSize: p.file.size,
+  });
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     api.getPhotos(id).then(photos => {
       if (cancelled) return;
-      setEventPhotos(id, photos.map(p => ({
-        id: p.id,
-        url: p.file.previewUrl || p.file.originalUrl,
-        eventId: p.eventId,
-        uploader: p.user.displayName,
-        uploaderId: p.uploadedBy,
-        uploadedAt: p.createdAt,
-        type: (p.file.mimetype.startsWith('video/') ? 'video' : p.file.mimetype === 'image/gif' ? 'gif' : 'image') as 'image' | 'video' | 'gif',
-        fileName: p.file.originalName,
-        fileSize: p.file.size,
-      })));
+      setEventPhotos(id, photos.map(mapApiPhoto));
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [id]);
+
+  const { uploadFiles, uploads } = useUpload();
+  const trackedUploadsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!id) return;
+    const completed = uploads.filter(u => u.eventId === id && u.status === 'success');
+    const fresh = completed.filter(u => !trackedUploadsRef.current.has(u.id));
+    if (fresh.length === 0) return;
+    fresh.forEach(u => trackedUploadsRef.current.add(u.id));
+    api.getPhotos(id).then(photos => {
+      setEventPhotos(id, photos.map(mapApiPhoto));
+    }).catch(() => {});
+  }, [uploads, id, setEventPhotos]);
 
   const memberStats = useMemo(() => {
     const uploaderMap = new Map<string, { count: number; lastActive: string; role: string }>();
@@ -224,8 +242,6 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     return result;
   }, [event.photos, userFilter, sortOrder, personFilter, searchQuery, semanticFilter, user]);
 
-  const { uploadFiles } = useUpload();
-
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
@@ -238,18 +254,12 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     fileInputRef.current?.click();
   };
 
-  const handleDownload = (url: string, filename: string) => {
-    fetch(url)
-      .then(response => response.blob())
-      .then(blob => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      })
-      .catch(console.error);
+  const handleDownload = (photo: Photo) => {
+    if (photo.mediaId) {
+      downloadMedia(photo.mediaId, `media-${photo.id}.jpg`, photo.url).catch(console.error);
+    } else {
+      downloadUrl(photo.url, `media-${photo.id}.jpg`).catch(console.error);
+    }
   };
 
   const handleDownloadBatch = async (photos: Photo[], zipName: string) => {
@@ -259,7 +269,16 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
 
     try {
       const downloadPromises = photos.map(async (photo, index) => {
-        const response = await fetch(photo.url);
+        let url = photo.url;
+        if (photo.mediaId) {
+          try {
+            const media = await api.getUpload(photo.mediaId);
+            if (media.originalUrl) url = media.originalUrl;
+          } catch {
+            // keep the stale signed URL as a fallback
+          }
+        }
+        const response = await fetch(url);
         const blob = await response.blob();
         const extension = photo.type === 'video' ? 'mp4' : (photo.type === 'gif' ? 'gif' : 'jpg');
         zip.file(`${photo.uploader}-${index}.${extension}`, blob);
@@ -762,7 +781,13 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
                   className="aspect-square overflow-hidden bg-[#1A1A1A] cursor-pointer hover:opacity-90 transition-opacity relative group"
                   onClick={() => setSelectedPhoto(photo)}
                 >
-                  <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                  {photo.url ? (
+                    <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-[#a855f7] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
 
                   <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-[#a855f7] to-[#d946ef] border border-white/20 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-white shadow-lg overflow-hidden">
                     {photo.uploader.charAt(0)}
@@ -827,7 +852,7 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
                     </button>
                   )}
                   <button
-                    onClick={() => handleDownload(selectedPhoto.url, `media-${selectedPhoto.id}.jpg`)}
+                    onClick={() => handleDownload(selectedPhoto)}
                     className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
                     title="Download this file"
                   >

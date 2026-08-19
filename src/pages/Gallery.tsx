@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, Download, Share2, Trash2, Info, User, Calendar, Folder, Cloud, HardDrive, Plus } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import type { Photo } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,15 +14,34 @@ import {
 } from '@/components/ui/dialog';
 
 export function Gallery() {
-  const { events, localFolders, addLocalFolder, deletePhoto } = useAppContext();
+  const { events, media, localFolders, addLocalFolder, deletePhoto, loadMedia } = useAppContext();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<(Photo & { eventName: string }) | null>(null);
   const [viewMode, setViewMode] = useState<'cloud' | 'device'>('cloud');
   const directoryInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    api.getUploads().then(loadMedia).catch(() => {});
+  }, [loadMedia]);
+
+  const personalMedia: (Photo & { eventName: string })[] = media.map(m => ({
+    id: m.id,
+    url: m.previewUrl || m.mediumUrl || m.originalUrl || '',
+    eventId: m.eventId || '',
+    uploader: 'You',
+    uploaderId: user?.uid || '',
+    uploadedAt: m.createdAt,
+    mediaId: m.id,
+    type: m.mimeType.startsWith('video/') ? 'video' : m.mimeType === 'image/gif' ? 'gif' : 'image',
+    nameCluster: 'My Media',
+    fileName: undefined,
+    fileSize: m.size,
+    eventName: m.eventId ? (events.find(e => e.id === m.eventId)?.name ?? 'Event') : 'My Media',
+  }));
+
   const allPhotos = viewMode === 'cloud'
-    ? events.flatMap(e => e.photos.map(p => ({ ...p, eventName: e.name })))
+    ? [...personalMedia, ...events.flatMap(e => e.photos.map(p => ({ ...p, eventName: e.name })))]
     : localFolders.flatMap(f => f.photos.map(p => ({ ...p, eventName: f.name })));
 
   const filteredPhotos = allPhotos.filter(p =>
@@ -236,7 +256,13 @@ export function Gallery() {
             className="aspect-square rounded-xl overflow-hidden relative group bg-[#1A1A1A] cursor-pointer"
             onClick={() => setSelectedPhoto(photo)}
           >
-            <img src={photo.url} alt="" className="w-full h-full object-cover" />
+            {photo.url ? (
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-[#a855f7] border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
 
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
               <div className="flex justify-end gap-2">
@@ -291,7 +317,7 @@ export function Gallery() {
                 >
                   <Download size={18} />
                 </Button>
-                {canDelete(selectedPhoto) && (
+                {canDelete(selectedPhoto) && selectedPhoto.eventId && (
                   <Button
                     onClick={() => handleDelete(selectedPhoto.eventId, selectedPhoto.id)}
                     variant="outline"

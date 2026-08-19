@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { api } from '@/lib/api';
+import { uploadFile } from '@/lib/directUpload';
 import { useAuth } from './AuthContext';
 import { useAppContext } from './AppContext';
 import { AlertCircle, CheckCircle, X, UploadCloud, ChevronUp, ChevronDown } from 'lucide-react';
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export interface UploadTask {
   id: string;
   file: File;
-  eventId: string;
+  eventId?: string;
   progress: number;
   status: 'pending' | 'uploading' | 'success' | 'error';
   error?: string;
@@ -16,7 +16,7 @@ export interface UploadTask {
 
 interface UploadContextType {
   uploads: UploadTask[];
-  uploadFiles: (files: File[], eventId: string) => void;
+  uploadFiles: (files: File[], eventId?: string) => void;
   removeUpload: (id: string) => void;
   retryUpload: (id: string) => void;
   clearCompleted: () => void;
@@ -34,28 +34,23 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [uploads, setUploads] = useState<UploadTask[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const { user } = useAuth();
-  const { addPhoto, events } = useAppContext();
+  const { addMedia, events } = useAppContext();
 
   const processUpload = useCallback(async (uploadTask: UploadTask) => {
     if (!user) return;
 
-    setUploads(prev => prev.map(u => u.id === uploadTask.id ? { ...u, status: 'uploading', progress: 50 } : u));
+    setUploads(prev => prev.map(u => u.id === uploadTask.id ? { ...u, status: 'uploading', progress: 3 } : u));
 
     try {
-      const photo = await api.uploadPhoto(uploadTask.eventId, uploadTask.file);
+      const { media } = await uploadFile(
+        uploadTask.file,
+        (percent) => {
+          setUploads(prev => prev.map(u => u.id === uploadTask.id ? { ...u, progress: percent } : u));
+        },
+        uploadTask.eventId,
+      );
 
-      const isVideo = uploadTask.file.type.startsWith('video/');
-      const isGif = uploadTask.file.type === 'image/gif';
-      const mediaType = isVideo ? 'video' : (isGif ? 'gif' : 'image');
-
-      addPhoto(uploadTask.eventId, {
-        url: photo.file.previewUrl || photo.file.originalUrl,
-        uploader: photo.user.displayName,
-        type: mediaType,
-        nameCluster: 'Just Uploaded',
-        fileName: photo.file.originalName,
-        fileSize: photo.file.size,
-      });
+      addMedia(media);
 
       setUploads(prev => prev.map(u => u.id === uploadTask.id ? { ...u, status: 'success', progress: 100 } : u));
 
@@ -66,10 +61,10 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error("Upload failed", err);
       setUploads(prev => prev.map(u => u.id === uploadTask.id ? { ...u, status: 'error', error: err.message || 'Upload failed' } : u));
     }
-  }, [user, addPhoto]);
+  }, [user, addMedia]);
 
-  const uploadFiles = useCallback((files: File[], eventId: string) => {
-    const event = events.find(e => e.id === eventId);
+  const uploadFiles = useCallback((files: File[], eventId?: string) => {
+    const event = eventId ? events.find(e => e.id === eventId) : undefined;
 
     const newUploads: UploadTask[] = [];
     const skippedUploads: UploadTask[] = [];
