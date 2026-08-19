@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { api } from '@/lib/api';
 import type { ApiEvent, ApiMedia } from '@/lib/api';
 import type { ReactNode } from 'react';
 
@@ -84,6 +85,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [autoUploadEvents, setAutoUploadEvents] = useState<string[]>([]);
 
   const { user: authUser } = useAuth();
+
+  useEffect(() => {
+    if (!authUser) return;
+    api.getEvents().then(loadEvents).catch(() => {});
+  }, [authUser]);
 
   const toggleAutoUploadForEvent = (eventId: string, enabled: boolean) => {
     setAutoUploadEvents(prev =>

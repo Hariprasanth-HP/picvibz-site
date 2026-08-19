@@ -3,22 +3,17 @@ import { PlusCircle, Upload, QrCode, ChevronRight, Sun, Bell, Merge, Check, MapP
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import { useUpload } from '@/context/UploadContext';
-import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 export function Home() {
-  const { events, loadEvents } = useAppContext();
+  const { events } = useAppContext();
   const { uploadFiles } = useUpload();
   const navigate = useNavigate();
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
-
-  useEffect(() => {
-    api.getEvents().then(loadEvents).catch(() => {});
-  }, []);
 
   const handleQuickUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
