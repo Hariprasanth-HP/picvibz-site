@@ -1,4 +1,4 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; connect-src 'self' http://13.204.46.77 https://picvibz-image-delivery.hari16205.workers.dev; img-src 'self' https://picvibz-image-delivery.hari16205.workers.dev"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' http://13.204.46.77 https://picvibz-image-delivery.hari16205.workers.dev https://pnrgirwiuswdbxjvectr.supabase.co; img-src 'self' https://picvibz-image-delivery.hari16205.workers.dev"
