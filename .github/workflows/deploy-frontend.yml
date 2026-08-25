@@ -1,0 +1,65 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: 3.109.207.61
+  EC2_USER: ubuntu
+  DEPLOY_DIR: /var/www/picvibz
+  VITE_API_URL: https://picvibz.onrender.com
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: 📥 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏗️ Build Vite
+        run: pnpm build
+
+      - name: ✅ Verify build
+        run: test -d dist && echo "Build OK" || echo "Build FAILED"
+
+      - name: 🔑 Setup SSH key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_SSH_KEY" > /tmp/ec2-key
+          chmod 600 /tmp/ec2-key
+
+      - name: 📤 Deploy to EC2
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        run: |
+          ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "mkdir -p $DEPLOY_DIR"
+          scp -i /tmp/ec2-key -o StrictHostKeyChecking=no -r dist/ "$EC2_USER@$EC2_HOST:$DEPLOY_DIR/"
+
+      - name: 🔄 Restart Nginx
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+        run: |
+          ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "sudo systemctl restart nginx"
+
+      - name: 🌐 Verify deployment
+        env:
+          EC2_HOST: ${{ env.EC2_HOST }}
+        run: |
+          echo "Frontend deployed. Should be accessible at: http://$EC2_HOST"
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 10 "http://$EC2_HOST" || echo "Health check timeout/failed"
