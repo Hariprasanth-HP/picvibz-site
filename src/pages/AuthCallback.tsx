@@ -9,11 +9,12 @@ export function AuthCallback() {
     let cancelled = false;
     (async () => {
       if (supabase) {
-        const { data } = await supabase.auth.getSession();
-        if (!cancelled && data.session) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!cancelled && user && !error) {
           navigate('/', { replace: true });
           return;
         }
+        if (error) console.error('Auth callback error:', error);
       }
       setTimeout(() => {
         if (!cancelled) navigate('/login', { replace: true });
