@@ -155,7 +155,7 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     return ['all', ...Array.from(peopleSet).sort()];
   }, [event.photos]);
 
-  const handleCleanupDuplicates = () => {
+  const handleCleanupDuplicates = async () => {
     if (!event.photos || event.photos.length === 0) return;
 
     const seen = new Map<string, string>();
@@ -174,8 +174,12 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
 
     if (duplicateIds.length > 0) {
       if (window.confirm(`Found ${duplicateIds.length} duplicate photos. Do you want to delete them?`)) {
-        deletePhotos(event.id, duplicateIds);
-        alert(`Deleted ${duplicateIds.length} duplicates.`);
+        try {
+          await deletePhotos(event.id, duplicateIds);
+          alert(`Deleted ${duplicateIds.length} duplicates.`);
+        } catch (err: any) {
+          alert(err.message || 'Failed to delete duplicates.');
+        }
       }
     } else {
       alert('No duplicates found.');
@@ -295,10 +299,13 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     }
   };
 
-  const handleDelete = (eventId: string, photoId: string) => {
-    if (window.confirm('Are you sure you want to delete this media?')) {
-      deletePhoto(eventId, photoId);
+  const handleDelete = async (eventId: string, photoId: string) => {
+    if (!window.confirm('Are you sure you want to delete this media?')) return;
+    try {
+      await deletePhoto(eventId, photoId);
       setSelectedPhoto(null);
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete media.');
     }
   };
 

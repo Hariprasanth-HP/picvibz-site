@@ -66,8 +66,8 @@ interface AppContextType {
   toggleAutoUploadForEvent: (eventId: string, enabled: boolean) => void;
   mergeEvents: (event1Id: string, event2Id: string, newName: string) => void;
   addPhoto: (eventId: string, photo: Omit<Photo, 'id' | 'eventId' | 'uploadedAt' | 'uploaderId'>) => void;
-  deletePhoto: (eventId: string, photoId: string) => void;
-  deletePhotos: (eventId: string, photoIds: string[]) => void;
+  deletePhoto: (eventId: string, photoId: string) => Promise<void>;
+  deletePhotos: (eventId: string, photoIds: string[]) => Promise<void>;
   setEventPhotos: (eventId: string, photos: Photo[]) => void;
   updatePhotoDetails: (eventId: string, photoId: string, details: Partial<Photo>) => void;
   addLocalFolder: (folder: LocalFolder) => void;
@@ -170,7 +170,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const deletePhoto = (eventId: string, photoId: string) => {
+  const deletePhoto = async (eventId: string, photoId: string) => {
+    await api.deletePhoto(eventId, photoId);
     setEvents(prev => prev.map(e => {
       if (e.id === eventId) {
         return {
@@ -182,7 +183,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const deletePhotos = (eventId: string, photoIds: string[]) => {
+  const deletePhotos = async (eventId: string, photoIds: string[]) => {
+    await Promise.all(photoIds.map(id => api.deletePhoto(eventId, id)));
     setEvents(prev => prev.map(e => {
       if (e.id === eventId) {
         return {

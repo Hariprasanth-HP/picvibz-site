@@ -246,4 +246,10 @@ export const api = {
   getPhotos(eventId: string) {
     return request<ApiPhoto[]>(`/events/${eventId}/photos`);
   },
+
+  deletePhoto(eventId: string, photoId: string) {
+    return request<{ message: string }>(`/events/${eventId}/photos/${photoId}`, {
+      method: 'DELETE',
+    });
+  },
 };
