@@ -2,13 +2,15 @@ name: Deploy Frontend to EC2
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+
   workflow_dispatch:
     inputs:
       ec2_host:
-        description: 'EC2 host IP'
+        description: "EC2 host IP"
         required: true
-        default: '3.109.207.61'
+        default: "15.252.122.182"
 
 env:
   EC2_HOST: ${{ github.event.inputs.ec2_host || secrets.EC2_HOST }}
@@ -19,30 +21,62 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
+      # --------------------------------------------------
+      # Checkout
+      # --------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # Setup pnpm
+      # --------------------------------------------------
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
+      # --------------------------------------------------
+      # Setup Node.js
+      # --------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: "22"
+          cache: "pnpm"
 
+      # --------------------------------------------------
+      # Install dependencies
+      # --------------------------------------------------
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # --------------------------------------------------
+      # Build frontend
+      # --------------------------------------------------
       - name: Build Vite
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
         run: pnpm build
 
+      # --------------------------------------------------
+      # Verify build
+      # --------------------------------------------------
       - name: Verify build
-        run: test -d dist && echo "Build OK" || echo "Build FAILED"
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build FAILED: dist directory does not exist"
+            exit 1
+          fi
 
+          echo "Build OK"
+          echo "Build contents:"
+          ls -lah dist
+
+      # --------------------------------------------------
+      # Setup SSH key
+      # --------------------------------------------------
       - name: Setup SSH key
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -50,25 +84,149 @@ jobs:
           echo "$EC2_SSH_KEY" > /tmp/ec2-key
           chmod 600 /tmp/ec2-key
 
-      - name: Deploy to EC2
+      # --------------------------------------------------
+      # Test SSH connection
+      # --------------------------------------------------
+      - name: Test SSH connection
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+        run: |
+          echo "Connecting to $EC2_USER@$EC2_HOST"
+
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
+            "$EC2_USER@$EC2_HOST" \
+            "echo 'SSH connection successful'"
+
+      # --------------------------------------------------
+      # Prepare deployment directory
+      # --------------------------------------------------
+      - name: Prepare EC2 deployment directory
         env:
           EC2_USER: ${{ env.EC2_USER }}
           EC2_HOST: ${{ env.EC2_HOST }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
         run: |
-          ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "mkdir -p $DEPLOY_DIR"
-          scp -i /tmp/ec2-key -o StrictHostKeyChecking=no -r dist/ "$EC2_USER@$EC2_HOST:$DEPLOY_DIR/"
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "sudo mkdir -p $DEPLOY_DIR && sudo chown -R $EC2_USER:$EC2_USER $DEPLOY_DIR"
 
+      # --------------------------------------------------
+      # Remove old frontend
+      # --------------------------------------------------
+      - name: Remove old frontend
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        run: |
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "rm -rf $DEPLOY_DIR/*"
+
+      # --------------------------------------------------
+      # Upload frontend
+      # --------------------------------------------------
+      - name: Upload frontend to EC2
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        run: |
+          scp \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            -r dist/* \
+            "$EC2_USER@$EC2_HOST:$DEPLOY_DIR/"
+
+      # --------------------------------------------------
+      # Fix permissions
+      # --------------------------------------------------
+      - name: Fix frontend permissions
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        run: |
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "sudo chmod -R 755 $DEPLOY_DIR"
+
+      # --------------------------------------------------
+      # Test Nginx configuration
+      # --------------------------------------------------
+      - name: Test Nginx configuration
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+        run: |
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "sudo nginx -t"
+
+      # --------------------------------------------------
+      # Restart Nginx
+      # --------------------------------------------------
       - name: Restart Nginx
         env:
           EC2_USER: ${{ env.EC2_USER }}
           EC2_HOST: ${{ env.EC2_HOST }}
         run: |
-          ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "sudo systemctl restart nginx"
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "sudo systemctl restart nginx"
 
+      # --------------------------------------------------
+      # Verify Nginx status
+      # --------------------------------------------------
+      - name: Verify Nginx
+        env:
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+        run: |
+          ssh \
+            -i /tmp/ec2-key \
+            -o StrictHostKeyChecking=no \
+            "$EC2_USER@$EC2_HOST" \
+            "sudo systemctl is-active --quiet nginx"
+
+          echo "Nginx is running"
+
+      # --------------------------------------------------
+      # Verify deployment
+      # --------------------------------------------------
       - name: Verify deployment
         env:
           EC2_HOST: ${{ env.EC2_HOST }}
         run: |
-          echo "Frontend deployed. Should be accessible at: http://$EC2_HOST"
-          curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 10 "http://$EC2_HOST" || echo "Health check timeout/failed"
+          echo "Frontend deployed"
+          echo "URL: http://$EC2_HOST"
+
+          HTTP_CODE=$(curl \
+            -s \
+            -o /dev/null \
+            -w "%{http_code}" \
+            --max-time 10 \
+            "http://$EC2_HOST")
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "Deployment successful"
+          else
+            echo "Deployment health check failed"
+            exit 1
+          fi
