@@ -17,6 +17,8 @@ env:
   EC2_USER: ec2-user
   DEPLOY_DIR: /var/www/picvibz
   VITE_API_URL: https://picvibz.onrender.com
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
 jobs:
   build-and-deploy:
@@ -58,6 +60,8 @@ jobs:
       - name: Build Vite
         env:
           VITE_API_URL: ${{ env.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ env.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ env.VITE_SUPABASE_ANON_KEY }}
         run: pnpm build
 
       # ---------------------------------------------
