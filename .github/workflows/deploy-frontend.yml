@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      ec2_host:
+        description: 'EC2 host IP'
+        required: true
+        default: '3.109.207.61'
 
 env:
-  EC2_HOST: 3.109.207.61
+  EC2_HOST: ${{ github.event.inputs.ec2_host || secrets.EC2_HOST }}
   EC2_USER: ubuntu
   DEPLOY_DIR: /var/www/picvibz
   VITE_API_URL: https://picvibz.onrender.com
@@ -14,34 +19,38 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📦 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
-      - name: 📥 Install dependencies
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: 🏗️ Build Vite
+      - name: Build Vite
         run: pnpm build
 
-      - name: ✅ Verify build
+      - name: Verify build
         run: test -d dist && echo "Build OK" || echo "Build FAILED"
 
-      - name: 🔑 Setup SSH key
+      - name: Setup SSH key
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           echo "$EC2_SSH_KEY" > /tmp/ec2-key
           chmod 600 /tmp/ec2-key
 
-      - name: 📤 Deploy to EC2
+      - name: Deploy to EC2
         env:
           EC2_USER: ${{ env.EC2_USER }}
           EC2_HOST: ${{ env.EC2_HOST }}
@@ -50,14 +59,14 @@ jobs:
           ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "mkdir -p $DEPLOY_DIR"
           scp -i /tmp/ec2-key -o StrictHostKeyChecking=no -r dist/ "$EC2_USER@$EC2_HOST:$DEPLOY_DIR/"
 
-      - name: 🔄 Restart Nginx
+      - name: Restart Nginx
         env:
           EC2_USER: ${{ env.EC2_USER }}
           EC2_HOST: ${{ env.EC2_HOST }}
         run: |
           ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "sudo systemctl restart nginx"
 
-      - name: 🌐 Verify deployment
+      - name: Verify deployment
         env:
           EC2_HOST: ${{ env.EC2_HOST }}
         run: |
