@@ -94,6 +94,10 @@ export interface ApiPhotoFile {
   thumbnailUrl: string;
   mediumUrl?: string;
   status?: string;
+  // Video-specific fields
+  videoUrl?: string;
+  posterUrl?: string;
+  previewGifUrl?: string;
 }
 
 export interface ApiPhotoUser {

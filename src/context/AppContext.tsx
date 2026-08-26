@@ -29,6 +29,10 @@ export interface Photo {
   folderName?: string;
   fileName?: string;
   fileSize?: number;
+  // Video-specific fields
+  videoUrl?: string;
+  posterUrl?: string;
+  previewVideoUrl?: string;
 }
 
 export interface LocalFolder {

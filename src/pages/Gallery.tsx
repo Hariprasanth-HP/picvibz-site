@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { MediaDisplay } from '@/components/MediaDisplay';
 
 export function Gallery() {
   const { events, media, localFolders, addLocalFolder, deletePhoto, loadMedia } = useAppContext();
@@ -256,9 +257,17 @@ export function Gallery() {
             className="aspect-square rounded-xl overflow-hidden relative group bg-[#1A1A1A] cursor-pointer"
             onClick={() => setSelectedPhoto(photo)}
           >
-            {photo.url ? (
-              <img src={photo.url} alt="" className="w-full h-full object-cover" />
-            ) : (
+{photo.url ? (
+                      <MediaDisplay
+                        type={photo.type}
+                        originalUrl={photo.url}
+                        previewUrl={photo.posterUrl}
+                        previewVideoUrl={photo.previewVideoUrl}
+                        videoUrl={photo.videoUrl}
+                        fill={true}
+                        className="object-cover"
+                      />
+                    ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-[#a855f7] border-t-transparent rounded-full animate-spin" />
               </div>
@@ -300,7 +309,15 @@ export function Gallery() {
         {selectedPhoto && (
           <DialogContent className="bg-[#1A1A1A] w-full max-w-lg rounded-3xl overflow-hidden border border-white/10 flex flex-col max-h-[90vh] p-0 gap-0 text-white">
             <div className="relative aspect-square sm:aspect-video bg-black flex items-center justify-center">
-              <img src={selectedPhoto.url} alt="" className="max-w-full max-h-full object-contain" />
+              <MediaDisplay
+                type={selectedPhoto.type}
+                originalUrl={selectedPhoto.url}
+                previewUrl={selectedPhoto.posterUrl}
+                previewVideoUrl={selectedPhoto.previewVideoUrl}
+                videoUrl={selectedPhoto.videoUrl}
+                fill={false}
+                className="max-w-full max-h-full object-contain"
+              />
             </div>
 
             <div className="p-6 space-y-6 overflow-y-auto">
