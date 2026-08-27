@@ -9,7 +9,7 @@ import { useAppContext } from '@/context/AppContext';
 import type { Photo, DetectedPerson, AppEvent } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useUpload } from '@/context/UploadContext';
-import { api, type ApiPhoto } from '@/lib/api';
+import { api, type ApiEventPhoto } from '@/lib/api';
 import { downloadMedia, downloadUrl } from '@/lib/download';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -78,22 +78,19 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     }
   };
 
-  const mapApiPhoto = (p: ApiPhoto): Photo => {
-    const isVideo = p.file.mimetype.startsWith('video/');
+  const mapApiPhoto = (p: ApiEventPhoto): Photo => {
+    const size = typeof p.size === 'string' ? Number(p.size) : p.size;
     return {
       id: p.id,
-      url: isVideo ? (p.file.posterUrl || p.file.previewUrl || p.file.originalUrl || '') : (p.file.previewUrl || p.file.originalUrl || ''),
+      url: p.previewUrl || p.mediumUrl || p.originalUrl || '',
       eventId: p.eventId,
-      uploader: p.user.displayName,
+      uploader: p.uploader?.displayName ?? '',
       uploaderId: p.uploadedBy,
       uploadedAt: p.createdAt,
-      mediaId: p.fileId,
-      type: (isVideo ? 'video' : p.file.mimetype === 'image/gif' ? 'gif' : 'image') as 'image' | 'video' | 'gif',
-      fileName: p.file.originalName,
-      fileSize: p.file.size,
-      videoUrl: p.file.videoUrl,
-      posterUrl: p.file.posterUrl,
-      previewVideoUrl: p.file.previewUrl,
+      mediaId: p.id,
+      type: p.mimetype === 'image/gif' ? 'gif' : 'image',
+      fileName: p.originalName ?? undefined,
+      fileSize: size,
     };
   };
 
@@ -356,7 +353,11 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
     <div className="h-full flex flex-col bg-[#0A0A0A] overflow-y-auto pb-24 md:pb-0 text-white">
       {/* Header Image */}
       <div className="h-72 relative">
-        <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover" />
+        {event.coverImage ? (
+          <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#8b5cf6] to-[#d946ef]" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#0A0A0A]" />
 
         <div className="absolute top-6 left-4 right-4 flex justify-between items-center">
@@ -383,7 +384,9 @@ function EventDetailsContent({ id, event }: { id: string; event: AppEvent }) {
             <div>
               <span className="text-[#a855f7] text-xs font-bold tracking-wider uppercase mb-1 block">{event.type}</span>
               <h1 className="text-3xl font-bold leading-tight mb-2">{event.name}</h1>
-              <p className="text-sm text-gray-300">{event.date} • {event.location}</p>
+              <p className="text-sm text-gray-300">
+                {event.date ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD'} • {event.location || 'Location TBD'}
+              </p>
             </div>
           </div>
         </div>

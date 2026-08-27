@@ -206,6 +206,8 @@ export function Home() {
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar">
           {events.map((event) => {
             const isSelected = selectedEvents.includes(event.id);
+            const eventDate = event.date ? new Date(event.date) : null;
+            const validDate = eventDate && !isNaN(eventDate.getTime()) ? eventDate : null;
 
             return (
               <Link
@@ -220,7 +222,11 @@ export function Home() {
                 onContextMenu={(e) => { e.preventDefault(); toggleSelection(event.id); }}
                 className={cn('min-w-[240px] h-[160px] rounded-2xl relative overflow-hidden snap-start flex-shrink-0 group border-2 transition-all', isSelected ? 'border-[#a855f7]' : 'border-transparent')}
               >
-                <img src={event.coverImage} alt={event.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                {event.coverImage ? (
+                  <img src={event.coverImage} alt={event.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#8b5cf6] to-[#d946ef]" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
                 {isSelected && (
@@ -230,8 +236,8 @@ export function Home() {
                 )}
 
                 <div className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex flex-col items-center justify-center border border-white/20 z-10">
-                  <span className="text-[8px] font-bold uppercase">{event.date.split(' ')[0]}</span>
-                  <span className="text-xs font-bold leading-none">{event.date.split(' ')[1]}</span>
+                  <span className="text-[8px] font-bold uppercase">{validDate ? validDate.toLocaleString('en-US', { month: 'short' }).toUpperCase() : 'TBD'}</span>
+                  <span className="text-xs font-bold leading-none">{validDate ? validDate.getDate().toString().padStart(2, '0') : '--'}</span>
                 </div>
 
                 <div className="absolute bottom-4 left-4 right-4 z-10">

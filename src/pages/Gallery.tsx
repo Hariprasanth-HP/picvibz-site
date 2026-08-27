@@ -26,20 +26,26 @@ export function Gallery() {
     api.getUploads().then(loadMedia).catch(() => {});
   }, [loadMedia]);
 
-  const personalMedia: (Photo & { eventName: string })[] = media.map(m => ({
-    id: m.id,
-    url: m.previewUrl || m.mediumUrl || m.originalUrl || '',
-    eventId: m.eventId || '',
-    uploader: 'You',
-    uploaderId: user?.uid || '',
-    uploadedAt: m.createdAt,
-    mediaId: m.id,
-    type: m.mimeType.startsWith('video/') ? 'video' : m.mimeType === 'image/gif' ? 'gif' : 'image',
-    nameCluster: 'My Media',
-    fileName: undefined,
-    fileSize: m.size,
-    eventName: m.eventId ? (events.find(e => e.id === m.eventId)?.name ?? 'Event') : 'My Media',
-  }));
+  const personalMedia: (Photo & { eventName: string })[] = media.map(m => {
+    const isVideo = m.type === 'VIDEO' || m.mimeType.startsWith('video/');
+    return {
+      id: m.id,
+      url: isVideo ? (m.posterUrl || m.previewUrl || m.originalUrl || '') : (m.previewUrl || m.mediumUrl || m.originalUrl || ''),
+      eventId: m.eventId || '',
+      uploader: 'You',
+      uploaderId: user?.uid || '',
+      uploadedAt: m.createdAt,
+      mediaId: m.id,
+      type: (isVideo ? 'video' : m.mimeType === 'image/gif' ? 'gif' : 'image') as 'image' | 'video' | 'gif',
+      videoUrl: isVideo ? m.videoUrl || undefined : undefined,
+      posterUrl: isVideo ? m.posterUrl || undefined : undefined,
+      previewVideoUrl: isVideo ? m.previewUrl || undefined : undefined,
+      nameCluster: 'My Media',
+      fileName: undefined,
+      fileSize: m.size,
+      eventName: m.eventId ? (events.find(e => e.id === m.eventId)?.name ?? 'Event') : 'My Media',
+    };
+  });
 
   const allPhotos = viewMode === 'cloud'
     ? [...personalMedia, ...events.flatMap(e => e.photos.map(p => ({ ...p, eventName: e.name })))]

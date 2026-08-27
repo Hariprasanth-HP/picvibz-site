@@ -117,11 +117,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       id: e.id,
       name: e.name,
       type: (e.type as AppEvent['type']) || 'Other',
-      date: e.date,
+      date: e.date || '',
       startDate: e.startDate || undefined,
       endDate: e.endDate || undefined,
-      location: e.location,
-      coverImage: e.coverImage,
+      location: e.location || '',
+      coverImage: '',
       photos: [],
     })));
   };

@@ -65,55 +65,19 @@ export interface CreateEventPayload {
   startDate?: string;
   endDate?: string;
   location?: string;
-  coverImage?: string;
 }
 
 export interface ApiEvent {
   id: string;
   name: string;
   type: string;
-  date: string;
+  date: string | null;
   startDate: string | null;
   endDate: string | null;
-  location: string;
-  coverImage: string;
+  location: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ApiPhotoFile {
-  id: string;
-  originalName: string;
-  mimetype: string;
-  size: number;
-  width: number | null;
-  height: number | null;
-  originalUrl: string;
-  previewUrl: string;
-  thumbnailUrl: string;
-  mediumUrl?: string;
-  status?: string;
-  // Video-specific fields
-  videoUrl?: string;
-  posterUrl?: string;
-  previewGifUrl?: string;
-}
-
-export interface ApiPhotoUser {
-  id: string;
-  displayName: string;
-  photoURL: string | null;
-}
-
-export interface ApiPhoto {
-  id: string;
-  eventId: string;
-  fileId: string;
-  uploadedBy: string;
-  file: ApiPhotoFile;
-  user: ApiPhotoUser;
-  createdAt: string;
 }
 
 export type ApiMediaStatus =
@@ -125,6 +89,7 @@ export type ApiMediaStatus =
 export interface ApiMedia {
   id: string;
   eventId: string | null;
+  type: 'PHOTO' | 'VIDEO';
   status: ApiMediaStatus;
   mimeType: string;
   size: number;
@@ -134,6 +99,33 @@ export interface ApiMedia {
   previewUrl: string | null;
   mediumUrl: string | null;
   originalUrl: string | null;
+  thumbnailUrl: string | null;
+  videoUrl: string | null;
+  posterUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiEventPhoto {
+  id: string;
+  type: 'PHOTO';
+  eventId: string;
+  status: ApiMediaStatus;
+  mimetype: string;
+  originalName: string | null;
+  size: string | number;
+  width: number | null;
+  height: number | null;
+  uploadedBy: string;
+  uploader: {
+    id: string;
+    displayName: string;
+    photoURL: string | null;
+  };
+  previewUrl: string | null;
+  mediumUrl: string | null;
+  originalUrl: string | null;
+  thumbnailUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -248,7 +240,7 @@ export const api = {
   },
 
   getPhotos(eventId: string) {
-    return request<ApiPhoto[]>(`/events/${eventId}/photos`);
+    return request<ApiEventPhoto[]>(`/events/${eventId}/photos`);
   },
 
   deletePhoto(eventId: string, photoId: string) {

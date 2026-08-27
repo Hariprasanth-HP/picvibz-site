@@ -16,12 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-function formatDate(datetimeLocal: string): string {
-  const d = new Date(datetimeLocal);
-  if (isNaN(d.getTime())) return 'TBD';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
-}
-
 const TEMPLATES = [
   { id: 'wedding', name: "Smith & Doe's Wedding", type: 'Wedding' as EventType, icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/10' },
   { id: 'birthday', name: "Alex's 30th Birthday", type: 'Birthday' as EventType, icon: Gift, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
@@ -67,22 +61,21 @@ export function CreateEvent() {
       const event = await api.createEvent({
         name,
         type,
-        date: formatDate(startDate),
+        date: startDate || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         location: location || 'TBD',
-        coverImage: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800&auto=format&fit=crop'
       });
 
       addEvent({
         id: event.id,
         name: event.name,
         type: event.type as EventType,
-        date: event.date,
+        date: event.date || '',
         startDate: event.startDate || undefined,
         endDate: event.endDate || undefined,
-        location: event.location,
-        coverImage: event.coverImage,
+        location: event.location || 'Location TBD',
+        coverImage: '',
         photos: []
       });
 

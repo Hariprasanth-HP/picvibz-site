@@ -174,11 +174,15 @@ export function Group() {
               }`}
             >
               <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover" />
+                {event.coverImage ? (
+                  <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#8b5cf6] to-[#d946ef]" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-lg truncate">{event.name}</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{event.photos.length} photos • {event.date}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{event.photos.length} photos • {event.date ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Date TBD'}</p>
               </div>
               {!isMerging && (
                 <Link to={`/event/${event.id}`} className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#2A2A2A] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#3A3A3A] transition-colors text-gray-600 dark:text-gray-300">
